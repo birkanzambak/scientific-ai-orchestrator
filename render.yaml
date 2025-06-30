@@ -1,28 +1,28 @@
 services:
   - type: web
     name: orchestrator-api
-    env: docker
+    runtime: python
     plan: free
-    numInstances: 1
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - fromGroup: orchestrator-env
     healthCheckPath: /health
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
 
   - type: worker
     name: orchestrator-worker
-    env: docker
+    runtime: python
     plan: free
-    numInstances: 1
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A app.workers worker --loglevel=info --concurrency=2
     envVars:
       - fromGroup: orchestrator-env
-    startCommand: celery -A app.workers worker --loglevel=info --concurrency=2
 
   - type: redis
     name: orchestrator-redis
     plan: free
     maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
 
 envVarGroups:
   - name: orchestrator-env
