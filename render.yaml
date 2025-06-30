@@ -17,8 +17,7 @@ services:
     numInstances: 1
     envVars:
       - fromGroup: orchestrator-env
-    run: "celery -A app.workers worker --loglevel=info --concurrency=2"
-
+  startCommand: celery -A app.workers worker --loglevel=info --concurrency=2
   - type: redis
     name: orchestrator-redis
     plan: free
