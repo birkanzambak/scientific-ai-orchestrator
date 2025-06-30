@@ -17,7 +17,8 @@ services:
     numInstances: 1
     envVars:
       - fromGroup: orchestrator-env
-  startCommand: celery -A app.workers worker --loglevel=info --concurrency=2
+    startCommand: celery -A app.workers worker --loglevel=info --concurrency=2
+
   - type: redis
     name: orchestrator-redis
     plan: free
@@ -35,4 +36,4 @@ envVarGroups:
       - key: COST_THRESHOLD
         value: "0.05"
       - key: CORS_ORIGINS
-        value: '["https://your-app.vercel.app", "http://localhost:3000"]' 
+        value: '["https://your-app.vercel.app", "http://localhost:3000"]'
