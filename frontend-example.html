@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scientific AI Orchestrator - Beta</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #555;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .status.processing {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #bbdefb;
+        }
+
+        .status.completed {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+
+        .progress {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 8px;
+            background: #e1e5e9;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .result {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .result h3 {
+            color: #495057;
+            margin-bottom: 1rem;
+        }
+
+        .evidence-item {
+            background: white;
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .evidence-item h4 {
+            color: #495057;
+            margin-bottom: 0.5rem;
+        }
+
+        .evidence-item p {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .roadmap-item {
+            background: white;
+            border-left: 4px solid #667eea;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .feedback {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e1e5e9;
+        }
+
+        .rating {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .rating-btn {
+            background: #e1e5e9;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .rating-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .rating-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧬 Scientific AI Orchestrator</h1>
+            <p>Evidence-based answers with research roadmaps</p>
+        </div>
+
+        <div class="card">
+            <form id="questionForm">
+                <div class="form-group">
+                    <label for="question">Ask a scientific question:</label>
+                    <textarea 
+                        id="question" 
+                        placeholder="e.g., How could room-temperature superconductivity be verified? What causes Alzheimer's disease? Why do stars explode?"
+                        required
+                    ></textarea>
+                </div>
+                <button type="submit" class="btn" id="submitBtn">
+                    <span id="btnText">Ask Question</span>
+                    <span id="btnLoading" class="loading hidden"></span>
+                </button>
+            </form>
+        </div>
+
+        <div id="progressCard" class="card hidden">
+            <div class="progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <span id="progressText">0%</span>
+            </div>
+            <div id="status" class="status processing">
+                Initializing analysis...
+            </div>
+        </div>
+
+        <div id="resultCard" class="card hidden">
+            <div class="result">
+                <h3>Answer</h3>
+                <div id="answer"></div>
+                
+                <h3>Knowledge Gaps</h3>
+                <ul id="gaps"></ul>
+                
+                <h3>Research Roadmap</h3>
+                <div id="roadmap"></div>
+                
+                <h3>Evidence & Citations</h3>
+                <div id="evidence"></div>
+            </div>
+
+            <div class="feedback">
+                <h3>How was this answer?</h3>
+                <div class="rating" id="rating">
+                    <button class="rating-btn" data-rating="1">1</button>
+                    <button class="rating-btn" data-rating="2">2</button>
+                    <button class="rating-btn" data-rating="3">3</button>
+                    <button class="rating-btn" data-rating="4">4</button>
+                    <button class="rating-btn" data-rating="5">5</button>
+                </div>
+                <textarea id="feedbackComment" placeholder="Any additional comments? (optional)" rows="3"></textarea>
+                <button class="btn" id="submitFeedback">Submit Feedback</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_URL = 'https://orchestrator-api.onrender.com'; // Update with your API URL
+        let currentTaskId = null;
+        let selectedRating = null;
+
+        // DOM elements
+        const questionForm = document.getElementById('questionForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const btnText = document.getElementById('btnText');
+        const btnLoading = document.getElementById('btnLoading');
+        const progressCard = document.getElementById('progressCard');
+        const resultCard = document.getElementById('resultCard');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const status = document.getElementById('status');
+        const answer = document.getElementById('answer');
+        const gaps = document.getElementById('gaps');
+        const roadmap = document.getElementById('roadmap');
+        const evidence = document.getElementById('evidence');
+
+        // Event listeners
+        questionForm.addEventListener('submit', handleSubmit);
+        document.querySelectorAll('.rating-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedRating = parseInt(btn.dataset.rating);
+            });
+        });
+        document.getElementById('submitFeedback').addEventListener('click', submitFeedback);
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+            
+            const question = document.getElementById('question').value.trim();
+            if (!question) return;
+
+            // Show loading state
+            setLoading(true);
+            showProgress();
+            
+            try {
+                // Submit question
+                const response = await fetch(`${API_URL}/ask`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question })
+                });
+
+                if (!response.ok) throw new Error('Failed to submit question');
+                
+                const { task_id } = await response.json();
+                currentTaskId = task_id;
+                
+                // Start polling for results
+                pollResults(task_id);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Failed to submit question. Please try again.');
+                setLoading(false);
+            }
+        }
+
+        async function pollResults(taskId) {
+            const maxAttempts = 30; // 60 seconds total
+            let attempts = 0;
+            
+            const poll = async () => {
+                try {
+                    const response = await fetch(`${API_URL}/result/${taskId}`);
+                    if (!response.ok) throw new Error('Failed to fetch result');
+                    
+                    const result = await response.json();
+                    updateProgress(result, attempts, maxAttempts);
+                    
+                    if (result.status === 'completed') {
+                        showResult(result);
+                        setLoading(false);
+                    } else if (result.status === 'failed') {
+                        showError(result.error || 'Analysis failed');
+                        setLoading(false);
+                    } else {
+                        attempts++;
+                        if (attempts < maxAttempts) {
+                            setTimeout(poll, 2000);
+                        } else {
+                            showError('Analysis timed out');
+                            setLoading(false);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Polling error:', error);
+                    attempts++;
+                    if (attempts < maxAttempts) {
+                        setTimeout(poll, 2000);
+                    } else {
+                        showError('Failed to get results');
+                        setLoading(false);
+                    }
+                }
+            };
+            
+            poll();
+        }
+
+        function updateProgress(result, attempts, maxAttempts) {
+            const progress = Math.min((attempts / maxAttempts) * 100, 90);
+            progressFill.style.width = `${progress}%`;
+            progressText.textContent = `${Math.round(progress)}%`;
+            
+            // Update status based on current step
+            if (result.sophia_output && !result.nova_output) {
+                status.textContent = 'Classifying question...';
+            } else if (result.nova_output && !result.lyra_output) {
+                status.textContent = 'Retrieving evidence...';
+            } else if (result.lyra_output && !result.critic_output) {
+                status.textContent = 'Analyzing evidence...';
+            } else if (result.critic_output) {
+                status.textContent = 'Verifying analysis...';
+            }
+        }
+
+        function showResult(result) {
+            const lyra = result.lyra_output;
+            if (!lyra) return;
+
+            // Show answer
+            answer.innerHTML = `<p>${lyra.answer}</p>`;
+
+            // Show gaps
+            gaps.innerHTML = lyra.gaps.map(gap => `<li>${gap}</li>`).join('');
+
+            // Show roadmap
+            roadmap.innerHTML = lyra.roadmap.map(item => `
+                <div class="roadmap-item">
+                    <h4>Priority ${item.priority}: ${item.research_area}</h4>
+                    <p><strong>Next Milestone:</strong> ${item.next_milestone}</p>
+                    <p><strong>Timeline:</strong> ${item.timeline}</p>
+                    <p><strong>Success Probability:</strong> ${Math.round(item.success_probability * 100)}%</p>
+                </div>
+            `).join('');
+
+            // Show evidence
+            if (result.nova_output) {
+                evidence.innerHTML = result.nova_output.evidence.map(item => `
+                    <div class="evidence-item">
+                        <h4>${item.title}</h4>
+                        <p><strong>DOI:</strong> <a href="https://doi.org/${item.doi}" target="_blank">${item.doi}</a></p>
+                        <p>${item.summary}</p>
+                    </div>
+                `).join('');
+            }
+
+            progressCard.classList.add('hidden');
+            resultCard.classList.remove('hidden');
+        }
+
+        function showProgress() {
+            progressCard.classList.remove('hidden');
+            resultCard.classList.add('hidden');
+        }
+
+        function showError(message) {
+            status.className = 'status error';
+            status.textContent = message;
+        }
+
+        function setLoading(loading) {
+            submitBtn.disabled = loading;
+            btnText.classList.toggle('hidden', loading);
+            btnLoading.classList.toggle('hidden', !loading);
+        }
+
+        async function submitFeedback() {
+            if (!selectedRating || !currentTaskId) return;
+
+            const comment = document.getElementById('feedbackComment').value;
+            
+            try {
+                const response = await fetch(`${API_URL}/feedback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        task_id: currentTaskId,
+                        rating: selectedRating,
+                        comment: comment || null
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Thank you for your feedback!');
+                    document.getElementById('submitFeedback').disabled = true;
+                    document.getElementById('submitFeedback').textContent = 'Feedback Submitted';
+                } else {
+                    alert('Failed to submit feedback. Please try again.');
+                }
+            } catch (error) {
+                console.error('Feedback error:', error);
+                alert('Failed to submit feedback. Please try again.');
+            }
+        }
+    </script>
+</body>
+</html> 

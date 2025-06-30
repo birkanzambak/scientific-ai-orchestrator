@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: orchestrator-api
+    env: docker
+    plan: free
+    numInstances: 1
+    envVars:
+      - fromGroup: orchestrator-env
+    healthCheckPath: /health
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+  - type: worker
+    name: orchestrator-worker
+    env: docker
+    plan: free
+    numInstances: 1
+    envVars:
+      - fromGroup: orchestrator-env
+    run: "celery -A app.workers worker --loglevel=info --concurrency=2"
+
+  - type: redis
+    name: orchestrator-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+
+envVarGroups:
+  - name: orchestrator-env
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: REDIS_URL
+        fromService: orchestrator-redis
+      - key: COST_THRESHOLD
+        value: "0.05"
+      - key: CORS_ORIGINS
+        value: '["https://your-app.vercel.app", "http://localhost:3000"]' 
