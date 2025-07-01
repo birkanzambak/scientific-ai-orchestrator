@@ -42,25 +42,19 @@ class Sophia:
         """
 
         # ----------------------------- messages --------------------------- #
-        system_msg = (
-            "You are Sophia, a universal scientific-question classifier.  "
-            "You must reply with **ONLY valid JSON**, no prose."
-        )
-        user_msg = (
-            f"{question}\n\n"
-            "Return a JSON object with the exact schema:\n"
-            '{\n'
+        user_prompt = (
+            "You are Sophia, a universal question classifier.\n\n"
+            f"QUESTION: {question}\n\n"
+            "Respond in STRICT JSON ONLY:\n"
+            "{\n"
             '  "question_type": "factual|causal|comparative|mechanism|prediction",\n'
             '  "keywords": ["...", "..."]\n'
-            '}'
+            "}"
         )
 
         response = self.client.chat.completions.create(
             model=self.model,
-            messages=[
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": user_msg},
-            ],
+            messages=[{"role": "user", "content": user_prompt}],
             response_format={"type": "json_object"},
             temperature=0,  # deterministic classification
         )
