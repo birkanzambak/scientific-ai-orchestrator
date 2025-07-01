@@ -45,4 +45,5 @@ services:
     name: orchestrator-redis
     plan: free
     maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
 
