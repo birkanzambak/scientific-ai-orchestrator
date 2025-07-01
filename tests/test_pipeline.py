@@ -1,10 +1,10 @@
 import pytest
 from unittest.mock import Mock, patch
 from app.models import SophiaOutput, NovaOutput, LyraOutput, CriticOutput, QuestionType
-from app.agents.sophia import Sophia
-from app.agents.nova import Nova
-from app.agents.lyra import Lyra
-from app.agents.critic import Critic
+from agents.sophia import Sophia
+from agents.nova import Nova
+from agents.lyra import Lyra
+from agents.critic import Critic
 from app.services.retriever import search_arxiv
 
 @pytest.fixture
