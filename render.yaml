@@ -28,16 +28,12 @@ services:
   - type: worker
     name: orchestrator-worker
     runtime: python
-    plan: free
+    plan: starter          # ← must be starter or above
     buildCommand: pip install -r requirements.txt
     startCommand: celery -A app.workers worker --loglevel=info --concurrency=2
     envVars:
       - key: OPENAI_API_KEY
         sync: false
-      - key: OPENAI_MODEL
-        value: gpt-4o-mini
-      - key: COST_THRESHOLD_USD
-        value: "0.05"
       - key: REDIS_URL
         fromService:
           name: orchestrator-redis
