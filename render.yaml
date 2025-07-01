@@ -25,7 +25,7 @@ services:
     ipAllowList: []
 
 envVarGroups:
-  - name: orchestrator-env
+   - fromGroup: orchestrator-env 
       envVars:
       - key: OPENAI_API_KEY
         value: ""
