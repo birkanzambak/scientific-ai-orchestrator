@@ -1,45 +1,48 @@
-# render.yaml  ── repo root
+# render.yaml  (minimal, copy-paste)
 services:
-  # ────────── API ──────────
-  - type: web
-    name: orchestrator-api
-    runtime: python
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    envVars:
-      - fromGroup: orchestrator-env
-    healthCheckPath: /health
+# ────────── API ──────────
+- type: web
+  name: orchestrator-api
+  runtime: python
+  plan: free
+  buildCommand: pip install -r requirements.txt
+  startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+  healthCheckPath: /health
+  envVars:
+    - key: OPENAI_API_KEY       #  ⇦ will hold a Gemini key if you switch
+      sync: false
+    - key: OPENAI_MODEL
+      value: gpt-4o-mini
+    - key: REDIS_URL
+      fromService: orchestrator-redis
+      property: connectionString
+    - key: COST_THRESHOLD_USD
+      value: "0.05"
+    - key: CORS_ORIGINS
+      value: '["https://your-app.vercel.app","http://localhost:3000"]'
 
-  # ───────── Worker ────────
-  - type: worker
-    name: orchestrator-worker
-    runtime: python
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: celery -A app.workers worker --loglevel=info --concurrency=2
-    envVars:
-      - fromGroup: orchestrator-env
+# ───────── Worker ────────
+- type: worker
+  name: orchestrator-worker
+  runtime: python
+  plan: free
+  buildCommand: pip install -r requirements.txt
+  startCommand: celery -A app.workers worker --loglevel=info --concurrency=2
+  envVars:
+    - key: OPENAI_API_KEY
+      sync: false
+    - key: OPENAI_MODEL
+      value: gpt-4o-mini
+    - key: REDIS_URL
+      fromService: orchestrator-redis
+      property: connectionString
+    - key: COST_THRESHOLD_USD
+      value: "0.05"
 
-  # ───────── Redis ─────────
-  - type: redis
-    name: orchestrator-redis
-    plan: free
-    maxmemoryPolicy: allkeys-lru
-    ipAllowList: []          # ← Render requires this field
+# ───────── Redis ─────────
+- type: redis
+  name: orchestrator-redis
+  plan: free
+  maxmemoryPolicy: allkeys-lru
+  ipAllowList: []          # Render requires this field
 
-# ─────── Env-var group (peer to “services”) ───────
-envVarGroups:
-  - name: orchestrator-env
-    envVars:
-      - key: OPENAI_API_KEY
-        sync: false          # add via dashboard
-      - key: OPENAI_MODEL
-        value: gpt-4o-mini
-      - key: REDIS_URL
-        fromService: orchestrator-redis
-        property: connectionString   # ← required
-      - key: COST_THRESHOLD_USD
-        value: "0.05"
-      - key: CORS_ORIGINS
-        value: '["https://your-app.vercel.app", "http://localhost:3000"]'
