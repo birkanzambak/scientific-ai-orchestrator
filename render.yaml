@@ -25,10 +25,10 @@ services:
     ipAllowList: []
 
 envVarGroups:
-   - fromGroup: orchestrator-env 
-      envVars:
+  - name: orchestrator-env          # <— “name”, not fromGroup
+    envVars:                        # aligned with “name”
       - key: OPENAI_API_KEY
-        sync: false
+        sync: false                 # Render will prompt for value
       - key: OPENAI_MODEL
         value: gpt-4o-mini
       - key: REDIS_URL
