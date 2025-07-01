@@ -1,106 +1,154 @@
+"""
+Lyra – scientific reasoning agent
+---------------------------------
+
+Takes a research question + evidence (Nova’s output) and produces
+• an evidence-based answer
+• remaining knowledge gaps
+• a short research roadmap
+• citation links (idx ties back to evidence array)
+
+The reply is requested in *JSON mode*, so at least one user/system
+message must literally contain the word “JSON”.
+"""
+
+from __future__ import annotations
+
 import json
 import os
+from typing import List
+
 from openai import OpenAI
 from app.models import NovaOutput, LyraOutput, RoadmapItem, Citation
 
+
 class Lyra:
-    def __init__(self):
+    """Reason over evidence and craft a research-grade answer."""
+
+    # ------------------------------ config ------------------------------ #
+    def __init__(self) -> None:
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.model = os.getenv("OPENAI_MODEL", "gpt-4o")
-        self.cost_threshold = float(os.getenv("COST_THRESHOLD", "0.05"))  # USD
-    
-    def estimate_tokens(self, text: str) -> int:
-        """Rough token estimation (4 chars per token)."""
-        return len(text) // 4
-    
-    def estimate_cost(self, input_tokens: int, output_tokens: int, model: str) -> float:
-        """Estimate cost in USD."""
-        # OpenAI pricing (approximate, as of 2024)
-        pricing = {
-            "gpt-4o": {"input": 0.0025, "output": 0.01},  # per 1K tokens
-            "gpt-4o-mini": {"input": 0.00015, "output": 0.0006}  # per 1K tokens
-        }
-        
-        if model not in pricing:
-            model = "gpt-4o-mini"  # fallback
-        
-        cost = (input_tokens / 1000) * pricing[model]["input"] + (output_tokens / 1000) * pricing[model]["output"]
-        return cost
-    
-    def run(self, question: str, nova_output: NovaOutput, critique: dict = None) -> LyraOutput:
-        """Reason over evidence and generate answer with research roadmap."""
-        
-        # Format evidence for prompt
-        evidence_text = ""
-        for i, item in enumerate(nova_output.evidence, 1):
-            evidence_text += f"{i}. {item.title}\n"
-            evidence_text += f"   DOI: {item.doi}\n"
-            evidence_text += f"   Summary: {item.summary}\n\n"
-        
-        critique_text = ""
+        self.cost_threshold = float(os.getenv("COST_THRESHOLD_USD", "0.05"))
+
+    # ------------------------ token/cost helpers ------------------------ #
+    @staticmethod
+    def _rough_tokens(text: str) -> int:
+        """Very rough ≈4 chars / token heuristic (good enough for guard-rails)."""
+        return max(1, len(text) // 4)
+
+    @staticmethod
+    def _estimate_cost(in_toks: int, out_toks: int, model: str) -> float:
+        """
+        Return cost in USD using OpenAI June 2024 price table.
+
+        (If `model` isn’t known we fall back to the mini tier.)
+        """
+        price = {
+            "gpt-4o": {"in": 0.0025, "out": 0.01},          # per 1 k tokens
+            "gpt-4o-mini": {"in": 0.00015, "out": 0.0006},
+        }.get(model, {"in": 0.00015, "out": 0.0006})
+
+        return (in_toks / 1_000) * price["in"] + (out_toks / 1_000) * price["out"]
+
+    # ----------------------------- runner ------------------------------ #
+    def run(
+        self,
+        question: str,
+        nova_output: NovaOutput,
+        critique: dict | None = None,
+    ) -> LyraOutput:
+        """Main entry point – returns a fully-typed `LyraOutput`."""
+
+        # ---------- build evidence & optional critique strings ---------- #
+        evidence_lines: List[str] = []
+        for idx, item in enumerate(nova_output.evidence, 1):
+            evidence_lines.append(
+                f"{idx}. {item.title}\n"
+                f"   DOI: {item.doi}\n"
+                f"   Summary: {item.summary}"
+            )
+        evidence_block = "\n\n".join(evidence_lines)
+
+        critique_block = ""
         if critique:
-            critique_text = f"\nPrevious critique identified issues: {critique.get('missing_points', [])}"
-        
-        prompt = f"""You are Lyra, a scientific reasoning agent. Analyze the evidence and answer the question.
+            critique_block = (
+                "\n\nPrior critique flagged missing points:\n"
+                + "\n".join(f"- {pt}" for pt in critique.get("missing_points", []))
+            )
 
-Question: {question}
+        # ------------------------ prompt assembly ----------------------- #
+        json_schema = (
+            '{\n'
+            '  "answer": "string",\n'
+            '  "gaps": ["string", ...],\n'
+            '  "roadmap": [\n'
+            '    {\n'
+            '      "priority": 1,\n'
+            '      "research_area": "string",\n'
+            '      "next_milestone": "string",\n'
+            '      "timeline": "6-12 months",\n'
+            '      "success_probability": 0.65\n'
+            '    }\n'
+            '  ],\n'
+            '  "citations": [\n'
+            '    {"doi": "doi-string", "idx": 1}\n'
+            '  ]\n'
+            '}'
+        )
 
-Evidence:
-{evidence_text}{critique_text}
+        user_msg = (
+            f"QUESTION:\n{question}\n\n"
+            f"EVIDENCE:\n{evidence_block}{critique_block}\n\n"
+            "Respond **ONLY** with valid JSON matching this schema:\n"
+            + json_schema
+        )
 
-Respond in STRICT JSON:
-{{
-  "answer": "comprehensive answer based on evidence",
-  "gaps": ["list of knowledge gaps"],
-  "roadmap": [
-    {{
-      "priority": 1,
-      "research_area": "specific area",
-      "next_milestone": "concrete milestone",
-      "timeline": "6-12 months",
-      "success_probability": 0.65
-    }}
-  ],
-  "citations": [
-    {{ "doi": "paper_doi", "idx": 1 }}
-  ]
-}}"""
+        # ---------------- cost guard-rail: model swap ------------------- #
+        prompt_tokens = self._rough_tokens(user_msg)
+        max_out_tokens = 1_000  # upper bound for safety
+        est_cost = self._estimate_cost(prompt_tokens, max_out_tokens, self.model)
 
-        # Estimate tokens and cost
-        input_tokens = self.estimate_tokens(prompt)
-        estimated_output_tokens = 1000  # conservative estimate
-        estimated_cost = self.estimate_cost(input_tokens, estimated_output_tokens, self.model)
-        
-        # Downgrade model if cost exceeds threshold
         model_to_use = self.model
-        if estimated_cost > self.cost_threshold and self.model == "gpt-4o":
+        if est_cost > self.cost_threshold and self.model == "gpt-4o":
             model_to_use = "gpt-4o-mini"
-            print(f"Cost guard-rail: Downgrading from {self.model} to {model_to_use} (estimated cost: ${estimated_cost:.4f})")
+            print(
+                f"[Lyra] Cost guard-rail: switching to {model_to_use} "
+                f"(est. ${est_cost:.3f} > ${self.cost_threshold:.2f})"
+            )
 
+        # --------------------------- call ------------------------------- #
         response = self.client.chat.completions.create(
             model=model_to_use,
             messages=[
-                {"role": "system", "content": "You are Lyra, a scientific reasoning agent."},
-                {"role": "user", "content": prompt}
+                {
+                    "role": "system",
+                    "content": (
+                        "You are Lyra, a rigorous scientific-reasoning assistant. "
+                        "Your replies **must be JSON only** – no prose."
+                    ),
+                },
+                {"role": "user", "content": user_msg},
             ],
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
+            temperature=0,
         )
-        
-        result = json.loads(response.choices[0].message.content)
-        
-        # Convert roadmap items
-        roadmap = [
-            RoadmapItem(**item) for item in result["roadmap"]
-        ]
-        
-        # Convert citations
-        citations = [
-            Citation(**citation) for citation in result["citations"]
-        ]
-        
-        return LyraOutput(
-            answer=result["answer"],
-            gaps=result["gaps"],
-            roadmap=roadmap,
-            citations=citations
-        ) 
+
+        # ----------------------- parse & validate ----------------------- #
+        try:
+            payload: dict = json.loads(response.choices[0].message.content)
+
+            roadmap = [RoadmapItem(**item) for item in payload["roadmap"]]
+            citations = [Citation(**c) for c in payload["citations"]]
+
+            return LyraOutput(
+                answer=payload["answer"],
+                gaps=payload["gaps"],
+                roadmap=roadmap,
+                citations=citations,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise ValueError(
+                "Lyra received non-JSON or malformed JSON:\n"
+                + response.choices[0].message.content
+            ) from exc
