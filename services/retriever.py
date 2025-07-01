@@ -1,6 +1,6 @@
 import arxiv
 from typing import List, Dict
-from ..app.models import EvidenceItem
+from app.models import EvidenceItem
 
 def search_arxiv(keywords: List[str], max_results: int = 5) -> List[EvidenceItem]:
     """Search arXiv for papers matching keywords."""

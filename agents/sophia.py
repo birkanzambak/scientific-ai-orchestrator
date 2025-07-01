@@ -1,7 +1,7 @@
 import json
 import os
 from openai import OpenAI
-from ..app.models import SophiaOutput, QuestionType
+from app.models import SophiaOutput, QuestionType
 
 class Sophia:
     def __init__(self):

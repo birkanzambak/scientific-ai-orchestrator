@@ -1,7 +1,7 @@
 import json
 import os
 from openai import OpenAI
-from ..app.models import LyraOutput, CriticOutput
+from app.models import LyraOutput, CriticOutput
 
 class Critic:
     def __init__(self):

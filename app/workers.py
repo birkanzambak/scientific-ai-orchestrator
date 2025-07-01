@@ -3,10 +3,10 @@ import asyncio
 from celery import Celery
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from .models import TaskResult, TaskStatus
-from ..agents.sophia import Sophia
-from ..agents.nova import Nova
-from ..agents.lyra import Lyra
-from ..agents.critic import Critic
+from app.agents.sophia import Sophia
+from app.agents.nova import Nova
+from app.agents.lyra import Lyra
+from app.agents.critic import Critic
 
 # Celery app configuration
 celery_app = Celery(

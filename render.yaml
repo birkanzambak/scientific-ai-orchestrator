@@ -1,39 +1,52 @@
+# render.yaml – Scientific AI Orchestrator
+
 services:
+  # ─────────── API ───────────
   - type: web
     name: orchestrator-api
-    env: docker
+    runtime: python
     plan: free
-    numInstances: 1
-    envVars:
-      - fromGroup: orchestrator-env
-    healthCheckPath: /health
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false                # set in dashboard
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: COST_THRESHOLD_USD
+        value: "0.05"
+      - key: CORS_ORIGINS
+        value: '["https://your-app.vercel.app","http://localhost:3000"]'
+      - key: REDIS_URL
+        fromService:
+          name: orchestrator-redis
+          type: redis
+          property: connectionString
 
+  # ───────── Worker ─────────
   - type: worker
     name: orchestrator-worker
-    env: docker
+    runtime: python
     plan: free
-    numInstances: 1
-    envVars:
-      - fromGroup: orchestrator-env
-    run: "celery -A app.workers worker --loglevel=info --concurrency=2"
-
-  - type: redis
-    name: orchestrator-redis
-    plan: free
-    maxmemoryPolicy: allkeys-lru
-
-envVarGroups:
-  - name: orchestrator-env
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A app.workers worker --loglevel=info --concurrency=2
     envVars:
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL
         value: gpt-4o-mini
-      - key: REDIS_URL
-        fromService: orchestrator-redis
-      - key: COST_THRESHOLD
+      - key: COST_THRESHOLD_USD
         value: "0.05"
-      - key: CORS_ORIGINS
-        value: '["https://your-app.vercel.app", "http://localhost:3000"]' 
+      - key: REDIS_URL
+        fromService:
+          name: orchestrator-redis
+          type: redis
+          property: connectionString
+
+  # ───────── Redis ─────────
+  - type: redis
+    name: orchestrator-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []

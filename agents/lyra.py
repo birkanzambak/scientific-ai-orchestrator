@@ -1,7 +1,7 @@
 import json
 import os
 from openai import OpenAI
-from ..app.models import NovaOutput, LyraOutput, RoadmapItem, Citation
+from app.models import NovaOutput, LyraOutput, RoadmapItem, Citation
 
 class Lyra:
     def __init__(self):
