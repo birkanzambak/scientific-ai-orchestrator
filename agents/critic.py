@@ -1,48 +1,75 @@
+"""
+Critic – citation-verification agent
+------------------------------------
+
+Checks whether every claim in Lyra’s answer is supported by one of the
+provided citations.  Uses OpenAI JSON-mode, so at least one message must
+contain the word “JSON”.
+"""
+
+from __future__ import annotations
+
 import json
 import os
+from typing import List
+
 from openai import OpenAI
 from app.models import LyraOutput, CriticOutput
 
+
 class Critic:
-    def __init__(self):
+    """Validate that each claim in the answer is backed by a citation."""
+
+    def __init__(self) -> None:
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    
+
+    # ------------------------------------------------------------------ #
     def run(self, question: str, lyra_output: LyraOutput) -> CriticOutput:
-        """Verify that claims are supported by citations."""
-        
-        # Format citations for prompt
-        citations_text = ""
-        for citation in lyra_output.citations:
-            citations_text += f"- Citation {citation.idx}: {citation.doi}\n"
-        
-        prompt = f"""Given the answer and citations, verify each claim is supported.
+        """
+        Return a CriticOutput with:
+        • passes : bool
+        • missing_points : list[str]
+        """
 
-Question: {question}
+        # ---------- citations block for the prompt ---------- #
+        citations_text = "\n".join(
+            f"- Citation {c.idx}: {c.doi}" for c in lyra_output.citations
+        )
 
-Answer: {lyra_output.answer}
-
-Citations:
-{citations_text}
-
-Return JSON:
-{{
-  "passes": true/false,
-  "missing_points": ["list of unsupported claims"]
-}}"""
+        user_msg = (
+            f"QUESTION:\n{question}\n\n"
+            f"ANSWER:\n{lyra_output.answer}\n\n"
+            f"CITATIONS:\n{citations_text}\n\n"
+            "Evaluate whether every claim is fully supported. "
+            "Respond **ONLY in valid JSON** with this schema:\n"
+            '{\n'
+            '  "passes": true,\n'
+            '  "missing_points": ["claim 1", "claim 2"]\n'
+            '}'
+        )
 
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": "You are a citation verification agent."},
-                {"role": "user", "content": prompt}
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a strict citation-verification agent. "
+                        "Your reply must be valid JSON; do not add commentary."
+                    ),
+                },
+                {"role": "user", "content": user_msg},
             ],
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
+            temperature=0,
         )
-        
-        result = json.loads(response.choices[0].message.content)
-        
+
+        payload: dict[str, bool | List[str]] = json.loads(
+            response.choices[0].message.content
+        )
+
         return CriticOutput(
-            passes=result["passes"],
-            missing_points=result["missing_points"]
-        ) 
+            passes=payload["passes"],
+            missing_points=payload["missing_points"],
+        )
