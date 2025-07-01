@@ -28,7 +28,6 @@ envVarGroups:
   - name: orchestrator-env
     envVars:
       - key: OPENAI_API_KEY
-        sync: false
       - key: OPENAI_MODEL
         value: gpt-4o-mini
       - key: REDIS_URL
