@@ -1,0 +1,27 @@
+[
+    {
+        "id": "q1",
+        "question": "Are we alone in the universe?",
+        "topic_filter": ["astronomy", "biology", "SETI"]
+    },
+    {
+        "id": "q2",
+        "question": "What is quantum computing?",
+        "topic_filter": ["physics", "computer science", "quantum mechanics"]
+    },
+    {
+        "id": "q3",
+        "question": "How does climate change affect biodiversity?",
+        "topic_filter": ["ecology", "climate science", "conservation"]
+    },
+    {
+        "id": "q4",
+        "question": "What causes Alzheimer's disease?",
+        "topic_filter": ["neuroscience", "medicine", "genetics"]
+    },
+    {
+        "id": "q5",
+        "question": "How do black holes form?",
+        "topic_filter": ["astrophysics", "general relativity", "stellar evolution"]
+    }
+] 
