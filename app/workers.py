@@ -77,7 +77,11 @@ def run_pipeline(self, question: str, task_id: str):
     """
     Execute the full pipeline and persist the JSON result in Redis.
 
+<<<<<<< Updated upstream
     Returns a light dict so Celery’s result backend is small; the full
+=======
+    Returns a light dict so Celery's result backend is small; the full
+>>>>>>> Stashed changes
     payload is stored under result:{task_id}.
     """
 
@@ -121,10 +125,24 @@ def run_pipeline(self, question: str, task_id: str):
                 lyra_inst.run,
                 question,
                 nova_out,
+<<<<<<< Updated upstream
                 critique=critic_out.dict(),
                 timeout=60,
             )
             task_results[task_id].lyra_output = lyra_out
+=======
+                critique={"missing_points": critic_out.missing_points},
+                timeout=60,
+            )
+            task_results[task_id].lyra_output = lyra_out
+            
+            # 6️⃣ Second Critic run after Lyra rerun
+            self.update_state(state="PROGRESS", meta={"step": "critic_rerun"})
+            critic_out = run_with_timeout(
+                Critic().run, question, lyra_out, timeout=30
+            )
+            task_results[task_id].critic_output = critic_out
+>>>>>>> Stashed changes
 
         # ✅ Completed
         task_results[task_id].status = TaskStatus.COMPLETED

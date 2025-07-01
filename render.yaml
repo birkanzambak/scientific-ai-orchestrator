@@ -1,51 +1,68 @@
-# render.yaml – Scientific AI Orchestrator
+# ─────────────────────────────────────────────
+# render.yaml  –  Scientific-AI-Orchestrator
+# ─────────────────────────────────────────────
 
+# 1️⃣  Services
 services:
-  # ─────────── API ───────────
+  # ─────────────  API  ─────────────
   - type: web
     name: orchestrator-api
     runtime: python
-    plan: free
+    plan: free                       # change to standard/starter later
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
+
     envVars:
-      - key: OPENAI_API_KEY
-        sync: false                # set in dashboard
+      - key: OPENAI_API_KEY          # add secret in Render dashboard
+        sync: false
       - key: OPENAI_MODEL
         value: gpt-4o-mini
-      - key: COST_THRESHOLD_USD
-        value: "0.05"
-      - key: CORS_ORIGINS
-        value: '["https://your-app.vercel.app","http://localhost:3000"]'
+
+      # 👉 correct fromService mapping
       - key: REDIS_URL
         fromService:
           name: orchestrator-redis
           type: redis
           property: connectionString
 
-  # ───────── Worker ─────────
+      - key: COST_THRESHOLD_USD
+        value: "0.05"
+
+      - key: CORS_ORIGINS
+        value: '["https://your-app.vercel.app","http://localhost:3000"]'
+
+
+  # ────────────  Worker  ────────────
   - type: worker
     name: orchestrator-worker
     runtime: python
-    plan: starter          # ← must be starter or above
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: celery -A app.workers worker --loglevel=info --concurrency=2
+
     envVars:
-      - key: PYTHON_VERSION        # ← add this line
-        value: "3.11.9"
       - key: OPENAI_API_KEY
         sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+
       - key: REDIS_URL
         fromService:
           name: orchestrator-redis
           type: redis
           property: connectionString
 
-  # ───────── Redis ─────────
+      - key: COST_THRESHOLD_USD
+        value: "0.05"
+
+
+  # ─────────────  Redis  ─────────────
   - type: redis
     name: orchestrator-redis
     plan: free
     maxmemoryPolicy: allkeys-lru
-    ipAllowList: []
+    ipAllowList: []                  # required by Render schema
 
+
+# (No envVarGroups section – everything is inline for simplicity)
