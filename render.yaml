@@ -26,7 +26,6 @@ services:
 
 envVarGroups:
   - name: orchestrator-env
-  - envVars:
       - key: OPENAI_API_KEY
         value: ""
       - key: OPENAI_MODEL
