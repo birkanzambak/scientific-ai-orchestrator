@@ -1,5 +1,6 @@
-# render.yaml  ── drop this at repo root
+# render.yaml  ── repo root
 services:
+  # ────────── API ──────────
   - type: web
     name: orchestrator-api
     runtime: python
@@ -10,6 +11,7 @@ services:
       - fromGroup: orchestrator-env
     healthCheckPath: /health
 
+  # ───────── Worker ────────
   - type: worker
     name: orchestrator-worker
     runtime: python
@@ -19,21 +21,24 @@ services:
     envVars:
       - fromGroup: orchestrator-env
 
+  # ───────── Redis ─────────
   - type: redis
     name: orchestrator-redis
     plan: free
     maxmemoryPolicy: allkeys-lru
+    ipAllowList: []          # ← Render requires this field
 
-#  ⬇️  NOTE: envVarGroups is *peer* to services, not nested inside.
+# ─────── Env-var group (peer to “services”) ───────
 envVarGroups:
-  - name: orchestrator-env       # <-- this “name” field was missing before
+  - name: orchestrator-env
     envVars:
       - key: OPENAI_API_KEY
-        sync: false              # let you set it in Render dashboard
+        sync: false          # add via dashboard
       - key: OPENAI_MODEL
         value: gpt-4o-mini
       - key: REDIS_URL
         fromService: orchestrator-redis
+        property: connectionString   # ← required
       - key: COST_THRESHOLD_USD
         value: "0.05"
       - key: CORS_ORIGINS
