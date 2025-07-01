@@ -1,4 +1,5 @@
-# render.yaml  –  Scientific AI Orchestrator  (pin Python via env-var)
+# render.yaml – Scientific AI Orchestrator
+
 services:
   # ─────────── API ───────────
   - type: web
@@ -9,24 +10,19 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
-      # ── secrets & config
       - key: OPENAI_API_KEY
-        sync: false
+        sync: false                # set in dashboard
       - key: OPENAI_MODEL
         value: gpt-4o-mini
       - key: COST_THRESHOLD_USD
         value: "0.05"
       - key: CORS_ORIGINS
         value: '["https://your-app.vercel.app","http://localhost:3000"]'
-      # ── Redis URL from service
       - key: REDIS_URL
         fromService:
           name: orchestrator-redis
           type: redis
           property: connectionString
-      # ── Pin Python version (Render respects this)
-      - key: PYTHON_VERSION
-        value: "3.11.9"
 
   # ───────── Worker ─────────
   - type: worker
@@ -42,8 +38,6 @@ services:
         value: gpt-4o-mini
       - key: COST_THRESHOLD_USD
         value: "0.05"
-      - key: PYTHON_VERSION
-        value: "3.11.9"
       - key: REDIS_URL
         fromService:
           name: orchestrator-redis
