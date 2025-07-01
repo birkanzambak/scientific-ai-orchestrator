@@ -1,4 +1,4 @@
-from app.services.retriever import search_arxiv
+from services.retriever import search_arxiv
 from app.models import SophiaOutput, NovaOutput
 
 class Nova:
