@@ -1,3 +1,4 @@
+# render.yaml  ── drop this at repo root
 services:
   - type: web
     name: orchestrator-api
@@ -22,18 +23,18 @@ services:
     name: orchestrator-redis
     plan: free
     maxmemoryPolicy: allkeys-lru
-    ipAllowList: []
 
+#  ⬇️  NOTE: envVarGroups is *peer* to services, not nested inside.
 envVarGroups:
-  - name: orchestrator-env          # <— “name”, not fromGroup
-    envVars:                        # aligned with “name”
+  - name: orchestrator-env       # <-- this “name” field was missing before
+    envVars:
       - key: OPENAI_API_KEY
-        sync: false                 # Render will prompt for value
+        sync: false              # let you set it in Render dashboard
       - key: OPENAI_MODEL
         value: gpt-4o-mini
       - key: REDIS_URL
         fromService: orchestrator-redis
-      - key: COST_THRESHOLD
+      - key: COST_THRESHOLD_USD
         value: "0.05"
       - key: CORS_ORIGINS
         value: '["https://your-app.vercel.app", "http://localhost:3000"]'
