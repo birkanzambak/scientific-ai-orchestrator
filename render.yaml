@@ -1,34 +1,37 @@
-# render.yaml  –  Scientific AI Orchestrator  (Python 3.11 wheels available)
+# render.yaml  –  Scientific AI Orchestrator  (pin Python via env-var)
 services:
-  # ───────────── API ─────────────
+  # ─────────── API ───────────
   - type: web
     name: orchestrator-api
     runtime: python
-    pythonVersion: 3.11        # ← pin Python so pydantic-core wheel exists
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
+      # ── secrets & config
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL
         value: gpt-4o-mini
+      - key: COST_THRESHOLD_USD
+        value: "0.05"
+      - key: CORS_ORIGINS
+        value: '["https://your-app.vercel.app","http://localhost:3000"]'
+      # ── Redis URL from service
       - key: REDIS_URL
         fromService:
           name: orchestrator-redis
           type: redis
           property: connectionString
-      - key: COST_THRESHOLD_USD
-        value: "0.05"
-      - key: CORS_ORIGINS
-        value: '["https://your-app.vercel.app","http://localhost:3000"]'
+      # ── Pin Python version (Render respects this)
+      - key: PYTHON_VERSION
+        value: "3.11.9"
 
-  # ─────────── Worker ───────────
+  # ───────── Worker ─────────
   - type: worker
     name: orchestrator-worker
     runtime: python
-    pythonVersion: 3.11
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: celery -A app.workers worker --loglevel=info --concurrency=2
@@ -37,18 +40,19 @@ services:
         sync: false
       - key: OPENAI_MODEL
         value: gpt-4o-mini
+      - key: COST_THRESHOLD_USD
+        value: "0.05"
+      - key: PYTHON_VERSION
+        value: "3.11.9"
       - key: REDIS_URL
         fromService:
           name: orchestrator-redis
           type: redis
           property: connectionString
-      - key: COST_THRESHOLD_USD
-        value: "0.05"
 
-  # ─────────── Redis ────────────
+  # ───────── Redis ─────────
   - type: redis
     name: orchestrator-redis
     plan: free
     maxmemoryPolicy: allkeys-lru
     ipAllowList: []
-
