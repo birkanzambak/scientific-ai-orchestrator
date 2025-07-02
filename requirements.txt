@@ -12,4 +12,4 @@ python-multipart==0.0.6
 sse-starlette==1.8.2
 tenacity==8.2.3
 python-dotenv==1.0.0
-pymed==1.0.0 
+pymed==0.8.9 
