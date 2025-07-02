@@ -39,11 +39,13 @@ class RoadmapItem(BaseModel):
 
 class Citation(BaseModel):
     doi: str
+    title: str
     idx: int
 
 class CriticOutput(BaseModel):
     passes: bool
     missing_points: List[str]
+    support_level: str = "weak"
 
 class LyraOutput(BaseModel):
     answer: str

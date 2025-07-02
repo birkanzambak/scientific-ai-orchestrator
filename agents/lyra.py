@@ -111,7 +111,7 @@ class Lyra:
             '    }\n'
             '  ],\n'
             '  "citations": [\n'
-            '    {"doi": "doi-string", "idx": 1}\n'
+            '    {"doi": "doi-string", "title": "paper-title", "idx": 1}\n'
             '  ]\n'
             '}'
         )
@@ -158,7 +158,17 @@ class Lyra:
             payload: dict = json.loads(response.choices[0].message.content)
 
             roadmap = [RoadmapItem(**item) for item in payload["roadmap"]]
-            citations = [Citation(**c) for c in payload["citations"]]
+            
+            # Build proper citations with title and doi from evidence
+            citations = []
+            for c in payload["citations"]:
+                if c["idx"] <= len(nova_output.evidence):
+                    evidence_item = nova_output.evidence[c["idx"] - 1]
+                    citations.append(Citation(
+                        doi=c["doi"],
+                        title=evidence_item.title,
+                        idx=c["idx"]
+                    ))
 
             return LyraOutput(
                 answer=payload["answer"],

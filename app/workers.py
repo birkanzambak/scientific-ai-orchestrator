@@ -26,6 +26,7 @@ from agents.nova import Nova
 from agents.lyra import Lyra
 from agents.critic import Critic
 from agents.dataminer import DataMiner
+from utils.exceptions import InsufficientEvidenceError
 
 # ─────────────────────────── Redis client ────────────────────────────
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -100,6 +101,10 @@ def run_pipeline(self, question: str, task_id: str):
         nova_out = run_with_timeout(Nova().run, question, sophia_out, timeout=30)
         task_results[task_id].nova_output = nova_out
 
+        # Guarantee schema even during stub / fallback runs
+        if not task_results[task_id].nova_output:
+            task_results[task_id].nova_output = {"evidence": []}
+
         # 2.5️⃣ DataMiner - Extract numerical findings
         self.update_state(state="PROGRESS", meta={"step": "dataminer"})
         dataminer = DataMiner()
@@ -145,6 +150,10 @@ def run_pipeline(self, question: str, task_id: str):
         # ✅ Completed
         task_results[task_id].status = TaskStatus.COMPLETED
 
+    except InsufficientEvidenceError as e:
+        task_results[task_id].status = TaskStatus.FAILED
+        task_results[task_id].error = str(e)
+        print(f"[run_pipeline] task {task_id} failed due to insufficient evidence → {e}")
     except Exception as exc:
         task_results[task_id].status = TaskStatus.FAILED
         task_results[task_id].error = str(exc)
