@@ -11,7 +11,8 @@ def test_dataminer_regex_extract_percentage():
         doi="10.1234/test.2024",
         summary=abstract,
         url="https://example.com",
-        authors=["Author 1"]
+        authors=["Author 1"],
+        source="arxiv"
     )
     miner = DataMiner()
     result = miner.regex_extract(abstract)
@@ -25,7 +26,8 @@ def test_dataminer_openai_extract_percentage():
         doi="10.1234/test.2024",
         summary=abstract,
         url="https://example.com",
-        authors=["Author 1"]
+        authors=["Author 1"],
+        source="arxiv"
     )
     miner = DataMiner()
     # Mock OpenAI response

@@ -12,9 +12,9 @@
   ],
   "nova_output": {
     "evidence": [
-      { "title": "Dummy Paper 1", "doi": "10.0000/dummy1", "summary": "placeholder", "url": "https://example.com/1" },
-      { "title": "Dummy Paper 2", "doi": "10.0000/dummy2", "summary": "placeholder", "url": "https://example.com/2" },
-      { "title": "Dummy Paper 3", "doi": "10.0000/dummy3", "summary": "placeholder", "url": "https://example.com/3" }
+      { "title": "Dummy Paper 1", "doi": "10.0000/dummy1", "summary": "placeholder", "url": "https://example.com/1", "source": "arxiv" },
+      { "title": "Dummy Paper 2", "doi": "10.0000/dummy2", "summary": "placeholder", "url": "https://example.com/2", "source": "arxiv" },
+      { "title": "Dummy Paper 3", "doi": "10.0000/dummy3", "summary": "placeholder", "url": "https://example.com/3", "source": "arxiv" }
     ]
   }
 } 

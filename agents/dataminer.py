@@ -80,7 +80,7 @@ class DataMiner:
         
         # Fallback to enhanced regex
         print(f"[DataMiner] LLM extraction failed or invalid, using regex fallback")
-        return self._regex_extract(evidence.summary)
+        return self.regex_extract(evidence.summary)
 
     def _llm_extract(self, text: str) -> Optional[NumericalFinding]:
         """Extract numerical data using LLM."""
@@ -127,7 +127,7 @@ class DataMiner:
             print(f"[DataMiner] LLM extraction error: {exc}")
             return None
 
-    def _regex_extract(self, text: str) -> NumericalFinding:
+    def regex_extract(self, text: str) -> NumericalFinding:
         """Enhanced regex extraction with multiple patterns."""
         findings = {}
         

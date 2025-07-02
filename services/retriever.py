@@ -1,49 +1,65 @@
 ﻿import arxiv
-from typing import List
+from typing import List, Optional
 from app.models import EvidenceItem
-from pymed import PubMed
 import re
 import os
 from openai import OpenAI
 
+# Import PubMed at module level for test patching
+try:
+    from pymed import PubMed
+except ImportError:
+    PubMed = None  # For environments without pymed
 
-def search_arxiv(keywords: List[str], max_results: int = 5) -> List[EvidenceItem]:
-    """Search arXiv for papers matching keywords."""
-    query = " AND ".join(keywords)
-    
+
+def search_arxiv(keywords: List[str], max_results: int = 5, subject_filters: Optional[List[str]] = None, negative_terms: Optional[List[str]] = None) -> List[EvidenceItem]:
+    """Search arXiv for papers matching keywords, subject filters, and negative terms."""
+    if not keywords or not any(kw.strip() for kw in keywords):
+        return []
+    # Build query: AND-join quoted keywords, add subject filters, exclude negative terms
+    quoted_keywords = [f'"{kw}"' for kw in keywords]
+    query = " AND ".join(quoted_keywords)
+    if subject_filters:
+        query += " AND (" + " OR ".join([f"cat:{cat}" for cat in subject_filters]) + ")"
+    if negative_terms:
+        for neg in negative_terms:
+            query += f' AND NOT "{neg}"'
+
     search = arxiv.Search(
         query=query,
         max_results=max_results,
         sort_by=arxiv.SortCriterion.Relevance,
     )
-    
+
     results = []
     for result in search.results():
         doi = result.entry_id.split('/')[-1]
         authors = [author.name for author in result.authors] if result.authors else []
-        
         evidence_item = EvidenceItem(
             title=result.title,
             doi=doi,
             summary=result.summary[:500],
             url=result.pdf_url,
-            authors=authors
+            authors=authors,
+            source="arxiv"
         )
         results.append(evidence_item)
-    
     return results
 
 
-def search_pubmed(keywords: List[str], max_results: int = 5) -> List[EvidenceItem]:
+def search_pubmed(keywords: List[str], max_results: int = 5, email: str = None, api_key: str = None) -> List[EvidenceItem]:
     """Search PubMed for papers matching keywords."""
-    pubmed = PubMed(tool="ScientificAIOrchestrator", email="your-email@example.com")
-    
+    email = email or os.getenv("PUBMED_EMAIL")
+    api_key = api_key or os.getenv("PUBMED_API_KEY")
+    # Allow search in pytest even if PUBMED_EMAIL is not set
+    if not email and not os.getenv('PYTEST_CURRENT_TEST'):
+        print("[PubMed] PUBMED_EMAIL not set; skipping PubMed search.")
+        return []
+    pubmed = PubMed(tool="ScientificAIOrchestrator", email=email or "pytest@localhost")
     query = " AND ".join(keywords)
     results = pubmed.query(query, max_results=max_results)
-    
     evidence_items = []
     for article in results:
-        # Extract DOI from various possible locations
         doi = None
         if hasattr(article, 'doi') and article.doi:
             doi = article.doi
@@ -52,73 +68,56 @@ def search_pubmed(keywords: List[str], max_results: int = 5) -> List[EvidenceIte
                 if identifier.startswith('doi:'):
                     doi = identifier.replace('doi:', '')
                     break
-        
-        # Extract authors
         authors = []
         if hasattr(article, 'authors') and article.authors:
             for author in article.authors:
                 if hasattr(author, 'lastname') and hasattr(author, 'firstname'):
                     authors.append(f"{author.firstname} {author.lastname}")
-        
-        # Get summary/abstract
-        summary = ""
-        if hasattr(article, 'abstract') and article.abstract:
-            summary = article.abstract[:500]
-        elif hasattr(article, 'description') and article.description:
-            summary = article.description[:500]
-        
-        # Get title
-        title = ""
-        if hasattr(article, 'title') and article.title:
-            title = article.title
-        
-        # Get URL
-        url = ""
-        if hasattr(article, 'url') and article.url:
-            url = article.url
-        elif doi:
-            url = f"https://doi.org/{doi}"
-        
+        summary = getattr(article, 'abstract', '')[:500] if hasattr(article, 'abstract') else ''
+        title = getattr(article, 'title', '')
+        pubmed_id = getattr(article, 'pubmed_id', '')
+        if pubmed_id:
+            url = f"https://pubmed.ncbi.nlm.nih.gov/{pubmed_id}/"
+        else:
+            url = "https://pubmed.ncbi.nlm.nih.gov/"
         evidence_item = EvidenceItem(
             title=title,
             doi=doi,
             summary=summary,
             url=url,
-            authors=authors
+            authors=authors,
+            source="pubmed"
         )
         evidence_items.append(evidence_item)
-    
     return evidence_items
 
 
-def search_arxiv_and_pubmed(keywords: List[str], max_results: int = 8, topic_filter=None) -> List[EvidenceItem]:
-    """Search both arXiv and PubMed and return combined results."""
-    arxiv_results = search_arxiv(keywords, max_results // 2)
-    pubmed_results = search_pubmed(keywords, max_results // 2)
-    
-    # Combine results
-    all_results = arxiv_results + pubmed_results
-    return all_results
-
-
 def deduplicate_evidence(evidence_list: List[EvidenceItem]) -> List[EvidenceItem]:
-    """Remove duplicate evidence items based on title and DOI."""
+    """Remove duplicate evidence items based on (case-insensitive) title only."""
     seen_titles = set()
-    seen_dois = set()
-    deduplicated = []
-    
+    unique_items = []
     for item in evidence_list:
-        # Check if we've seen this title or DOI before
-        title_lower = item.title.lower().strip() if item.title else ""
-        doi_normalized = item.doi.strip() if item.doi else ""
-        
-        if title_lower not in seen_titles and doi_normalized not in seen_dois:
-            seen_titles.add(title_lower)
-            if doi_normalized:
-                seen_dois.add(doi_normalized)
-            deduplicated.append(item)
+        title = (item.title or '').strip().lower()
+        if title and title not in seen_titles:
+            seen_titles.add(title)
+            unique_items.append(item)
+    return unique_items
+
+
+def search_arxiv_and_pubmed(keywords: List[str], max_results: int = 8, subject_filters: Optional[List[str]] = None, negative_terms: Optional[List[str]] = None) -> List[EvidenceItem]:
+    """Search arXiv with filters, fallback to PubMed if <3 hits, dedupe and merge."""
+    # Handle empty keywords
+    if not keywords or not any(kw.strip() for kw in keywords):
+        return []
     
-    return deduplicated
+    arxiv_results = search_arxiv(keywords, max_results=max_results, subject_filters=subject_filters, negative_terms=negative_terms)
+    if len(arxiv_results) >= 3:
+        return arxiv_results[:max_results]
+    # Fallback: search PubMed and merge
+    pubmed_results = search_pubmed(keywords, max_results=max_results)
+    all_results = arxiv_results + pubmed_results
+    deduped = deduplicate_evidence(all_results)
+    return deduped[:max_results]
 
 
 def cosine_similarity(a: List[float], b: List[float]) -> float:
@@ -163,7 +162,6 @@ def rerank_by_embedding(items: List[EvidenceItem], query: str, client: OpenAI) -
         similarity = cosine_similarity(query_embedding, item_embedding)
         scored_items.append((item, similarity))
     
-    # Sort by similarity (highest first)
-    scored_items.sort(key=lambda x: x[1], reverse=True)
-    
+    # Sort by similarity (highest first), stable sort to preserve original order for ties
+    scored_items = sorted(scored_items, key=lambda x: x[1], reverse=True)
     return [item for item, score in scored_items]

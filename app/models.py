@@ -18,6 +18,7 @@ class EvidenceItem(BaseModel):
     summary: str
     url: str
     authors: List[str] = []
+    source: str  # "arxiv" or "pubmed"
 
 class CriticFeedback(BaseModel):
     """Feedback from Critic agent for evidence quality assessment."""
@@ -39,11 +40,13 @@ class RoadmapItem(BaseModel):
 
 class Citation(BaseModel):
     doi: str
+    title: str
     idx: int
 
 class CriticOutput(BaseModel):
     passes: bool
     missing_points: List[str]
+    support_level: str = "weak"
 
 class LyraOutput(BaseModel):
     answer: str

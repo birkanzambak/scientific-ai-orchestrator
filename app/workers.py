@@ -26,6 +26,7 @@ from agents.nova import Nova
 from agents.lyra import Lyra
 from agents.critic import Critic
 from agents.dataminer import DataMiner
+from utils.exceptions import InsufficientEvidenceError
 
 # ─────────────────────────── Redis client ────────────────────────────
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -100,6 +101,10 @@ def run_pipeline(self, question: str, task_id: str):
         nova_out = run_with_timeout(Nova().run, question, sophia_out, timeout=30)
         task_results[task_id].nova_output = nova_out
 
+        # Guarantee schema even during stub / fallback runs
+        if not task_results[task_id].nova_output:
+            task_results[task_id].nova_output = {"evidence": []}
+
         # 2.5️⃣ DataMiner - Extract numerical findings
         self.update_state(state="PROGRESS", meta={"step": "dataminer"})
         dataminer = DataMiner()
@@ -124,6 +129,20 @@ def run_pipeline(self, question: str, task_id: str):
         )
         task_results[task_id].critic_output = critic_out
 
+        # Enforce: if critic_output.passes is False, fail the pipeline
+        if critic_out and not critic_out.passes:
+            task_results[task_id].status = TaskStatus.FAILED
+            task_results[task_id].error = f"Critic did not pass: {critic_out.missing_points}"
+            # Persist and return early
+            final_json = task_results[task_id].dict()
+            redis_client.setex(
+                RESULT_KEY.format(task_id), int(RESULT_TTL), json.dumps(final_json)
+            )
+            return {
+                "status": final_json["status"],
+                "task_id": task_id,
+            }
+
         # 5️⃣ Optional Lyra rerun if Critic fails
         if not critic_out.passes:
             self.update_state(state="PROGRESS", meta={"step": "lyra_rerun"})
@@ -145,6 +164,10 @@ def run_pipeline(self, question: str, task_id: str):
         # ✅ Completed
         task_results[task_id].status = TaskStatus.COMPLETED
 
+    except InsufficientEvidenceError as e:
+        task_results[task_id].status = TaskStatus.FAILED
+        task_results[task_id].error = str(e)
+        print(f"[run_pipeline] task {task_id} failed due to insufficient evidence → {e}")
     except Exception as exc:
         task_results[task_id].status = TaskStatus.FAILED
         task_results[task_id].error = str(exc)

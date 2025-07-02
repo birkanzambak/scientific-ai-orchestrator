@@ -17,6 +17,12 @@ from openai import OpenAI
 from app.models import LyraOutput, CriticOutput, CriticFeedback, EvidenceItem
 
 
+def validate_support_level(level: str) -> str:
+    """Validate support_level is one of {weak, moderate, strong}, fallback to 'weak'."""
+    allowed = {"weak", "moderate", "strong"}
+    return level if level in allowed else "weak"
+
+
 class Critic:
     """Validate that each claim in the answer is backed by a citation."""
 
@@ -30,6 +36,7 @@ class Critic:
         Return a CriticOutput with:
         • passes : bool
         • missing_points : list[str]
+        • support_level : str (validated)
         """
 
         # ---------- citations block for the prompt ---------- #
@@ -45,7 +52,8 @@ class Critic:
             "Respond **ONLY in valid JSON** with this schema:\n"
             '{\n'
             '  "passes": true,\n'
-            '  "missing_points": ["claim 1", "claim 2"]\n'
+            '  "missing_points": ["claim 1", "claim 2"],\n'
+            '  "support_level": "strong"\n'
             '}'
         )
 
@@ -65,13 +73,17 @@ class Critic:
             temperature=0,
         )
 
-        payload: dict[str, bool | List[str]] = json.loads(
+        payload: dict[str, bool | List[str] | str] = json.loads(
             response.choices[0].message.content
         )
+
+        # Validate support_level
+        support_level = validate_support_level(payload.get("support_level", "weak"))
 
         return CriticOutput(
             passes=payload["passes"],
             missing_points=payload["missing_points"],
+            support_level=support_level,
         )
 
     def run_raw(self, query: str, evidence: List[EvidenceItem], agent_name: str) -> CriticFeedback:
