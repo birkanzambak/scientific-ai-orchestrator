@@ -4,7 +4,7 @@ Sophia – universal question classifier
 
 Given a natural-language question, classify its type and extract
 keywords.  The OpenAI response is requested in *JSON mode*, so the
-system/user messages must literally contain the word “JSON”.
+system/user messages must literally contain the word "JSON".
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from typing import List
 
 from openai import OpenAI
 from app.models import SophiaOutput, QuestionType
+from agents.critic import Critic
 
 
 class Sophia:
@@ -37,7 +38,7 @@ class Sophia:
         Returns
         -------
         SophiaOutput
-            Dataclass / Pydantic model containing a `question_type`
+            Dataclass/Pydantic model containing a `question_type`
             Enum and a list of `keywords`.
         """
 
@@ -64,10 +65,20 @@ class Sophia:
             payload: dict[str, str | List[str]] = json.loads(
                 response.choices[0].message.content
             )
-            return SophiaOutput(
+            sophia_output = SophiaOutput(
                 question_type=QuestionType(payload["question_type"]),
                 keywords=payload["keywords"],
             )
+            # --- Critic check ---
+            try:
+                critic = Critic()
+                critic_result = critic.run_raw_messages([
+                    {"role": "user", "content": user_prompt}
+                ])
+                print(f"[Sophia] Critic check: {critic_result}")
+            except Exception as exc:
+                print(f"[Sophia] Critic check failed: {exc}")
+            return sophia_output
         except Exception as exc:  # noqa: BLE001
             # Let the caller decide what to do (fail fast in Celery task)
             raise ValueError(

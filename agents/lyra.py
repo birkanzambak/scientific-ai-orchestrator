@@ -2,14 +2,14 @@
 Lyra – scientific reasoning agent
 ---------------------------------
 
-Takes a research question + evidence (Nova’s output) and produces
+Takes a research question + evidence (Nova's output) and produces
 • an evidence-based answer
 • remaining knowledge gaps
 • a short research roadmap
 • citation links (idx ties back to evidence array)
 
 The reply is requested in *JSON mode*, so at least one user/system
-message must literally contain the word “JSON”.
+message must literally contain the word "JSON".
 """
 
 from __future__ import annotations
@@ -19,7 +19,8 @@ import os
 from typing import List
 
 from openai import OpenAI
-from app.models import NovaOutput, LyraOutput, RoadmapItem, Citation
+from app.models import NovaOutput, LyraOutput, RoadmapItem, Citation, NumericalFinding
+from agents.critic import Critic
 
 
 class Lyra:
@@ -30,6 +31,7 @@ class Lyra:
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.model = os.getenv("OPENAI_MODEL", "gpt-4o")
         self.cost_threshold = float(os.getenv("COST_THRESHOLD_USD", "0.05"))
+        self.critic = Critic()
 
     # ------------------------ token/cost helpers ------------------------ #
     @staticmethod
@@ -42,7 +44,7 @@ class Lyra:
         """
         Return cost in USD using OpenAI June 2024 price table.
 
-        (If `model` isn’t known we fall back to the mini tier.)
+        (If `model` isn't known we fall back to the mini tier.)
         """
         price = {
             "gpt-4o": {"in": 0.0025, "out": 0.01},          # per 1 k tokens
@@ -52,14 +54,14 @@ class Lyra:
         return (in_toks / 1_000) * price["in"] + (out_toks / 1_000) * price["out"]
 
     # ----------------------------- runner ------------------------------ #
-    def run(
+    def run_raw(
         self,
         question: str,
         nova_output: NovaOutput,
+        numerical_findings: List[NumericalFinding] = None,
         critique: dict | None = None,
     ) -> LyraOutput:
-        """Main entry point – returns a fully-typed `LyraOutput`."""
-
+        """Raw version that doesn't call Critic - used for testing and internal calls."""
         # ---------- build evidence & optional critique strings ---------- #
         evidence_lines: List[str] = []
         for idx, item in enumerate(nova_output.evidence, 1):
@@ -68,7 +70,24 @@ class Lyra:
                 f"   DOI: {item.doi}\n"
                 f"   Summary: {item.summary}"
             )
-        evidence_block = "\n\n".join(evidence_lines)
+            
+            # Add numerical findings if available
+            if numerical_findings and idx <= len(numerical_findings):
+                finding = numerical_findings[idx - 1]
+                if any([finding.percentages, finding.p_values, finding.confidence_intervals, finding.sample_sizes]):
+                    evidence_lines.append("   Key Numbers:")
+                    if finding.percentages:
+                        evidence_lines.append(f"     Percentages: {', '.join(finding.percentages)}")
+                    if finding.p_values:
+                        evidence_lines.append(f"     P-values: {', '.join(finding.p_values)}")
+                    if finding.confidence_intervals:
+                        evidence_lines.append(f"     Confidence Intervals: {', '.join(finding.confidence_intervals)}")
+                    if finding.sample_sizes:
+                        evidence_lines.append(f"     Sample Sizes: {', '.join(finding.sample_sizes)}")
+            
+            evidence_lines.append("")  # Add spacing between items
+            
+        evidence_block = "\n".join(evidence_lines)
 
         critique_block = ""
         if critique:
@@ -152,3 +171,31 @@ class Lyra:
                 "Lyra received non-JSON or malformed JSON:\n"
                 + response.choices[0].message.content
             ) from exc
+
+    def run(
+        self,
+        question: str,
+        nova_output: NovaOutput,
+        numerical_findings: List[NumericalFinding] = None,
+        critique: dict | None = None,
+    ) -> LyraOutput:
+        """Main entry point – returns a fully-typed `LyraOutput` with Critic feedback."""
+        # Get initial output
+        lyra_output = self.run_raw(question, nova_output, numerical_findings, critique)
+        
+        # Let Critic review the answer quality and citation accuracy
+        try:
+            critic_output = self.critic.run(question, lyra_output)
+            print(f"[Lyra] Critic review: {'PASS' if critic_output.passes else 'FAIL'}")
+            if not critic_output.passes:
+                print(f"[Lyra] Missing points: {critic_output.missing_points}")
+        except Exception as e:
+            print(f"[Lyra] Critic review failed: {e}")
+            critic_output = None
+        
+        # Store critic feedback in the output (we'll need to add this field to LyraOutput)
+        # For now, we'll just log it
+        if critic_output:
+            lyra_output.critic_feedback = critic_output
+        
+        return lyra_output

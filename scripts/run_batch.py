@@ -162,7 +162,7 @@ def run_single_question(question_data: Dict[str, Any]) -> Dict[str, Any]:
         # Step 2: Nova
         print("  Running Nova...")
         nova = Nova()
-        nova_output = nova.run(sophia_output)
+        nova_output = nova.run(question_text, sophia_output)
         result["nova_output"] = nova_output.__dict__
         print(f"  ✓ Nova: Found {len(nova_output.evidence)} evidence items")
         
