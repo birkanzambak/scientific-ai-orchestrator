@@ -129,6 +129,20 @@ def run_pipeline(self, question: str, task_id: str):
         )
         task_results[task_id].critic_output = critic_out
 
+        # Enforce: if critic_output.passes is False, fail the pipeline
+        if critic_out and not critic_out.passes:
+            task_results[task_id].status = TaskStatus.FAILED
+            task_results[task_id].error = f"Critic did not pass: {critic_out.missing_points}"
+            # Persist and return early
+            final_json = task_results[task_id].dict()
+            redis_client.setex(
+                RESULT_KEY.format(task_id), int(RESULT_TTL), json.dumps(final_json)
+            )
+            return {
+                "status": final_json["status"],
+                "task_id": task_id,
+            }
+
         # 5️⃣ Optional Lyra rerun if Critic fails
         if not critic_out.passes:
             self.update_state(state="PROGRESS", meta={"step": "lyra_rerun"})

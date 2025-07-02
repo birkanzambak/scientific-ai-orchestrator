@@ -58,7 +58,24 @@ class TestNova:
                 doi="1234.5678",
                 summary="This paper provides a comprehensive survey of quantum computing.",
                 url="http://arxiv.org/pdf/1234.5678",
-                authors=["Author 1", "Author 2"]
+                authors=["Author 1", "Author 2"],
+                source="arxiv"
+            ),
+            EvidenceItem(
+                title="Quantum Algorithms: A Review",
+                doi="1234.5679",
+                summary="This paper reviews quantum algorithms and their applications.",
+                url="http://arxiv.org/pdf/1234.5679",
+                authors=["Author 3", "Author 4"],
+                source="arxiv"
+            ),
+            EvidenceItem(
+                title="Quantum Computing Applications",
+                doi="1234.5680",
+                summary="This paper discusses practical applications of quantum computing.",
+                url="http://arxiv.org/pdf/1234.5680",
+                authors=["Author 5", "Author 6"],
+                source="arxiv"
             )
         ]
         mock_search.return_value = mock_evidence
@@ -73,8 +90,12 @@ class TestNova:
         result = nova.run(question, sophia_output)
         
         assert isinstance(result, NovaOutput)
-        assert len(result.evidence) == 1
-        assert result.evidence[0].title == "Quantum Computing: A Survey"
+        assert len(result.evidence) == 3
+        # Check that all expected items are present (order may vary due to ranking)
+        titles = [item.title for item in result.evidence]
+        assert "Quantum Computing: A Survey" in titles
+        assert "Quantum Algorithms: A Review" in titles
+        assert "Quantum Computing Applications" in titles
         assert result.critic_feedback is not None
 
 class TestArxivRetriever:
@@ -87,7 +108,8 @@ class TestArxivRetriever:
                 doi="1234.5678",
                 summary="Test summary",
                 url="http://arxiv.org/pdf/1234.5678",
-                authors=["Author 1"]
+                authors=["Author 1"],
+                source="arxiv"
             )
         ]
         mock_search.return_value = mock_evidence

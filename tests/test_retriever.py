@@ -52,17 +52,14 @@ class TestPubMedSearch:
     def test_search_pubmed_returns_evidence_items(self, mock_pubmed_class):
         """Test that search_pubmed returns EvidenceItem objects."""
         # Mock PubMed article
-        mock_article = Mock()
-        mock_article.title = "Test Medical Paper"
-        mock_article.doi = "10.1234/test.2024"
-        mock_article.abstract = "This is a test medical paper about cancer treatment."
-        mock_article.pubmed_id = "12345678"
-        mock_article.url = "https://pubmed.ncbi.nlm.nih.gov/12345678/"
-        mock_article.authors = [
-            Mock(lastname="Smith", firstname="John"),
-            Mock(lastname="Doe", firstname="Jane")
-        ]
-        
+        mock_article = MockPubMedArticle(
+            title="Test Research Paper",
+            abstract="This is a test abstract with important findings about cancer treatment.",
+            doi="10.1234/test.2024.001",
+            authors=[MockAuthor("John", "Doe"), MockAuthor("Jane", "Smith")],
+            url="https://pubmed.ncbi.nlm.nih.gov/12345678/",
+            pubmed_id="12345678"
+        )
         mock_pubmed = Mock()
         mock_pubmed.query.return_value = [mock_article]
         mock_pubmed_class.return_value = mock_pubmed
@@ -71,9 +68,9 @@ class TestPubMedSearch:
         
         assert len(results) == 1
         assert isinstance(results[0], EvidenceItem)
-        assert results[0].title == "Test Medical Paper"
-        assert results[0].doi == "10.1234/test.2024"
-        assert results[0].authors == ["John Smith", "Jane Doe"]
+        assert results[0].title == "Test Research Paper"
+        assert results[0].doi == "10.1234/test.2024.001"
+        assert results[0].authors == ["John Doe", "Jane Smith"]
 
 
 class TestCombinedSearch:
@@ -89,7 +86,8 @@ class TestCombinedSearch:
             doi="1234.5678",
             summary="ArXiv summary",
             url="http://arxiv.org/pdf/1234.5678",
-            authors=["ArXiv Author"]
+            authors=["ArXiv Author"],
+            source="arxiv"
         )
         mock_arxiv.return_value = [arxiv_item]
         
@@ -99,7 +97,8 @@ class TestCombinedSearch:
             doi="10.1234/pubmed.2024",
             summary="PubMed summary",
             url="https://pubmed.ncbi.nlm.nih.gov/12345678/",
-            authors=["PubMed Author"]
+            authors=["PubMed Author"],
+            source="pubmed"
         )
         mock_pubmed.return_value = [pubmed_item]
         
@@ -121,21 +120,24 @@ class TestDeduplication:
             doi="doi1",
             summary="summary1",
             url="url1",
-            authors=["Author1"]
+            authors=["Author1"],
+            source="arxiv"
         )
         item2 = EvidenceItem(
             title="Same Title",
             doi="doi2",
             summary="summary2",
             url="url2",
-            authors=["Author2"]
+            authors=["Author2"],
+            source="arxiv"
         )
         item3 = EvidenceItem(
             title="Different Title",
             doi="doi3",
             summary="summary3",
             url="url3",
-            authors=["Author3"]
+            authors=["Author3"],
+            source="arxiv"
         )
         
         items = [item1, item2, item3]
@@ -179,21 +181,15 @@ class TestEmbeddingFunctions:
     @patch('services.retriever.get_embedding')
     def test_rerank_by_embedding_returns_sorted_list(self, mock_get_embedding):
         """Test that rerank_by_embedding returns sorted list."""
-        # Mock embeddings with explicit call tracking
-        call_count = 0
-        def mock_embedding_side_effect(text, client):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:  # Query embedding
-                return [1, 0, 0]
-            elif call_count == 2:  # Item1 embedding (high similarity)
-                return [0.9, 0.1, 0]
-            elif call_count == 3:  # Item2 embedding (low similarity)
-                return [0.1, 0.9, 0]
-            else:
-                return [0, 0, 1]  # Fallback
-        
-        mock_get_embedding.side_effect = mock_embedding_side_effect
+        # Mock embeddings with values that will produce clear similarity differences
+        # Query: [1, 0, 0]
+        # Item2: [0.1, 0.9, 0] - low similarity to query
+        # Item1: [0.9, 0.1, 0] - high similarity to query
+        mock_get_embedding.side_effect = [
+            [1, 0, 0],  # Query embedding
+            [0.1, 0.9, 0],  # Item2 embedding (low similarity to query)
+            [0.9, 0.1, 0],  # Item1 embedding (high similarity to query)
+        ]
         
         mock_client = Mock()
         item1 = EvidenceItem(
@@ -201,20 +197,22 @@ class TestEmbeddingFunctions:
             doi="doi1",
             summary="summary1",
             url="url1",
-            authors=[]
+            authors=[],
+            source="arxiv"
         )
         item2 = EvidenceItem(
             title="Item2",
             doi="doi2",
             summary="summary2",
             url="url2",
-            authors=[]
+            authors=[],
+            source="arxiv"
         )
         
         items = [item2, item1]  # Reverse order
         reranked = rerank_by_embedding(items, "test query", mock_client)
         
-        # Should be sorted by similarity (item1 should come first)
+        # Should be sorted by similarity (item1 should come first due to higher similarity)
         assert reranked[0].title == "Item1"
         assert reranked[1].title == "Item2"
 
@@ -234,14 +232,16 @@ class TestIntegration:
             doi="doi1",
             summary="summary1",
             url="url1",
-            authors=["Author1"]
+            authors=["Author1"],
+            source="arxiv"
         )
         pubmed_item = EvidenceItem(
             title="PubMed Paper",
             doi="doi2",
             summary="summary2",
             url="url2",
-            authors=["Author2"]
+            authors=["Author2"],
+            source="pubmed"
         )
         
         mock_arxiv.return_value = [arxiv_item]
@@ -263,12 +263,13 @@ class TestIntegration:
 
 
 class MockPubMedArticle:
-    def __init__(self, title, abstract, doi, authors=None, url=None):
+    def __init__(self, title, abstract, doi, authors=None, url=None, pubmed_id=None):
         self.title = title
         self.abstract = abstract
         self.doi = doi
         self.authors = authors or []
         self.url = url
+        self.pubmed_id = pubmed_id or "12345678"  # Default pubmed_id
         self.identifiers = [f"doi:{doi}"] if doi else []
 
 
@@ -286,7 +287,8 @@ def test_search_pubmed_mocked():
         abstract="This is a test abstract with important findings about cancer treatment.",
         doi="10.1234/test.2024.001",
         authors=[MockAuthor("John", "Doe"), MockAuthor("Jane", "Smith")],
-        url="https://pubmed.ncbi.nlm.nih.gov/12345678/"
+        url="https://pubmed.ncbi.nlm.nih.gov/12345678/",
+        pubmed_id="12345678"
     )
     
     # Mock PubMed client
@@ -311,7 +313,8 @@ def test_search_pubmed_no_doi():
         title="Test Paper Without DOI",
         abstract="This paper has no DOI.",
         doi=None,
-        authors=[MockAuthor("Alice", "Johnson")]
+        authors=[MockAuthor("Alice", "Johnson")],
+        pubmed_id=None
     )
     
     mock_pubmed = Mock()
@@ -335,7 +338,8 @@ def test_search_arxiv_and_pubmed_combined():
         doi="10.1234/arxiv.2024.001",
         summary="arXiv abstract",
         url="https://arxiv.org/abs/2024.001",
-        authors=["Author 1", "Author 2"]
+        authors=["Author 1", "Author 2"],
+        source="arxiv"
     )
     
     # Mock PubMed result
@@ -344,7 +348,8 @@ def test_search_arxiv_and_pubmed_combined():
         doi="10.1234/pubmed.2024.001",
         summary="PubMed abstract",
         url="https://pubmed.ncbi.nlm.nih.gov/12345678/",
-        authors=["Author 3", "Author 4"]
+        authors=["Author 3", "Author 4"],
+        source="pubmed"
     )
     
     with patch('services.retriever.search_arxiv', return_value=[mock_arxiv_result]), \

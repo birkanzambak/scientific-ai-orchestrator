@@ -18,6 +18,7 @@ class EvidenceItem(BaseModel):
     summary: str
     url: str
     authors: List[str] = []
+    source: str  # "arxiv" or "pubmed"
 
 class CriticFeedback(BaseModel):
     """Feedback from Critic agent for evidence quality assessment."""

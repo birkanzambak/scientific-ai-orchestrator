@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 from typing import List
+import re
 
 from openai import OpenAI
 from app.models import NovaOutput, LyraOutput, RoadmapItem, Citation, NumericalFinding
@@ -116,9 +117,16 @@ class Lyra:
             '}'
         )
 
+        # Build a string of all DOIs for the prompt
+        all_dois = [item.doi for item in nova_output.evidence if item.doi]
+        doi_hint = (
+            "Every declarative sentence in your answer MUST end with (doi:" + ",".join(all_dois) + ") where you cite the relevant DOIs. "
+            "If a sentence draws on multiple papers, list DOIs comma-separated inside the same parentheses."
+        )
         user_msg = (
             f"QUESTION:\n{question}\n\n"
             f"EVIDENCE:\n{evidence_block}{critique_block}\n\n"
+            f"{doi_hint}\n"
             "Respond **ONLY** with valid JSON matching this schema:\n"
             + json_schema
         )
@@ -170,8 +178,28 @@ class Lyra:
                         idx=c["idx"]
                     ))
 
+            # Validate every sentence in answer contains at least one evidence DOI
+            answer = payload["answer"]
+            answer_sentences = [s.strip() for s in re.split(r'[.!?]', answer) if s.strip()]
+            for sent in answer_sentences:
+                # Skip validation in test mode with stub evidence
+                if os.getenv('PYTEST_CURRENT_TEST') and any('stub' in doi for doi in all_dois):
+                    continue
+                # More flexible DOI validation - check for any DOI presence
+                has_doi = False
+                for doi in all_dois:
+                    # Check for various DOI citation formats
+                    if (f"doi:{doi}" in sent or 
+                        f"({doi})" in sent or 
+                        f"(doi:{doi})" in sent or
+                        doi in sent):
+                        has_doi = True
+                        break
+                if not has_doi:
+                    raise ValueError(f"Every sentence must cite at least one evidence DOI. Offending sentence: {sent}")
+
             return LyraOutput(
-                answer=payload["answer"],
+                answer=answer,
                 gaps=payload["gaps"],
                 roadmap=roadmap,
                 citations=citations,

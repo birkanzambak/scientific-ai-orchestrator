@@ -32,6 +32,12 @@ services:
       - key: CORS_ORIGINS
         value: '["https://your-app.vercel.app","http://localhost:3000"]'
 
+      # PubMed Configuration
+      - key: PUBMED_EMAIL
+        sync: false                  # add secret in Render dashboard
+      - key: PUBMED_API_KEY
+        sync: false                  # optional, add secret in Render dashboard
+
 
   # ────────────  Worker  ────────────
   - type: worker
@@ -55,6 +61,12 @@ services:
 
       - key: COST_THRESHOLD_USD
         value: "0.05"
+
+      # PubMed Configuration
+      - key: PUBMED_EMAIL
+        sync: false                  # add secret in Render dashboard
+      - key: PUBMED_API_KEY
+        sync: false                  # optional, add secret in Render dashboard
 
 
   # ─────────────  Redis  ─────────────
