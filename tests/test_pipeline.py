@@ -43,8 +43,14 @@ class TestSophia:
         assert result.keywords == ["quantum", "computing"]
 
 class TestNova:
-    @patch('agents.nova.search_arxiv')
-    def test_nova_evidence_retrieval(self, mock_search):
+    @patch('agents.nova.search_arxiv_and_pubmed')
+    @patch('agents.nova.Critic')
+    def test_nova_evidence_retrieval(self, mock_critic_class, mock_search):
+        # Mock Critic
+        mock_critic = Mock()
+        mock_critic_class.return_value = mock_critic
+        mock_critic.run_raw.return_value = Mock(should_rerun=False, rerun_reason=None, quality_score=1.0, suggestions=[])
+        
         # Mock combined search results
         mock_evidence = [
             EvidenceItem(
@@ -52,7 +58,7 @@ class TestNova:
                 doi="1234.5678",
                 summary="This paper provides a comprehensive survey of quantum computing.",
                 url="http://arxiv.org/pdf/1234.5678",
-                
+                authors=["Author 1", "Author 2"]
             )
         ]
         mock_search.return_value = mock_evidence
@@ -63,12 +69,13 @@ class TestNova:
         )
         
         nova = Nova()
-        result = nova.run(sophia_output)
+        question = "What is quantum computing?"
+        result = nova.run(question, sophia_output)
         
         assert isinstance(result, NovaOutput)
         assert len(result.evidence) == 1
         assert result.evidence[0].title == "Quantum Computing: A Survey"
-        
+        assert result.critic_feedback is not None
 
 class TestArxivRetriever:
     @patch('tests.test_pipeline.search_arxiv')
@@ -80,7 +87,7 @@ class TestArxivRetriever:
                 doi="1234.5678",
                 summary="Test summary",
                 url="http://arxiv.org/pdf/1234.5678",
-                
+                authors=["Author 1"]
             )
         ]
         mock_search.return_value = mock_evidence

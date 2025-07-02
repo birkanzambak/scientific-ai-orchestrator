@@ -25,6 +25,7 @@ from agents.sophia import Sophia
 from agents.nova import Nova
 from agents.lyra import Lyra
 from agents.critic import Critic
+from agents.dataminer import DataMiner
 
 # ─────────────────────────── Redis client ────────────────────────────
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -96,14 +97,23 @@ def run_pipeline(self, question: str, task_id: str):
 
         # 2️⃣ Nova
         self.update_state(state="PROGRESS", meta={"step": "nova"})
-        nova_out = run_with_timeout(Nova().run, sophia_out, timeout=30)
+        nova_out = run_with_timeout(Nova().run, question, sophia_out, timeout=30)
         task_results[task_id].nova_output = nova_out
+
+        # 2.5️⃣ DataMiner - Extract numerical findings
+        self.update_state(state="PROGRESS", meta={"step": "dataminer"})
+        dataminer = DataMiner()
+        numerical_findings = []
+        for evidence_item in nova_out.evidence:
+            finding = run_with_timeout(dataminer.run, evidence_item, timeout=15)
+            numerical_findings.append(finding)
+        task_results[task_id].numerical_findings = numerical_findings
 
         # 3️⃣ Lyra
         self.update_state(state="PROGRESS", meta={"step": "lyra"})
         lyra_inst = Lyra()
         lyra_out = run_with_timeout(
-            lyra_inst.run, question, nova_out, timeout=60
+            lyra_inst.run, question, nova_out, numerical_findings, timeout=60
         )
         task_results[task_id].lyra_output = lyra_out
 
