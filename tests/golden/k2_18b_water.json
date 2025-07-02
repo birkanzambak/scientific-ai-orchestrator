@@ -1,0 +1,20 @@
+{
+  "claim": "K2-18b shows evidence of water vapor in its atmosphere, suggesting potential habitability but not confirming life.",
+  "confidence": 0.85,
+  "support_level": "strong",
+  "rationale": "Multiple independent analyses of Hubble Space Telescope data have detected water vapor absorption features in the atmosphere of K2-18b. The planet orbits within the habitable zone of its star, and the atmospheric models are consistent with a significant water component.",
+  "caveats": "Detection is limited by the resolution of current instruments; the presence of water vapor does not imply surface oceans or biological activity. The planet's mass and radius suggest a possible thick hydrogen envelope, which may preclude Earth-like conditions.",
+  "next_experiment": "Observe K2-18b with the James Webb Space Telescope to obtain higher-resolution spectra and search for additional biosignature gases.",
+  "citations": [
+    { "doi": "10.0000/dummy1", "verdict": "supports" },
+    { "doi": "10.0000/dummy2", "verdict": "background" },
+    { "doi": "10.0000/dummy3", "verdict": "background" }
+  ],
+  "nova_output": {
+    "evidence": [
+      { "title": "Dummy Paper 1", "doi": "10.0000/dummy1", "summary": "placeholder", "url": "https://example.com/1" },
+      { "title": "Dummy Paper 2", "doi": "10.0000/dummy2", "summary": "placeholder", "url": "https://example.com/2" },
+      { "title": "Dummy Paper 3", "doi": "10.0000/dummy3", "summary": "placeholder", "url": "https://example.com/3" }
+    ]
+  }
+} 

@@ -1,0 +1,20 @@
+{
+  "claim": "The maximum power conversion efficiency for single-junction perovskite solar cells is approximately 31% under standard test conditions.",
+  "confidence": 0.92,
+  "support_level": "strong",
+  "rationale": "Theoretical calculations based on the Shockley-Queisser limit and recent experimental advances indicate that perovskite materials can approach efficiencies near 31%. Record devices have achieved over 25% in laboratory settings.",
+  "caveats": "Long-term stability and scalability remain challenges. The theoretical limit assumes ideal conditions not always met in practice.",
+  "next_experiment": "Develop tandem architectures and improve material stability to push practical efficiencies closer to the theoretical maximum.",
+  "citations": [
+    { "doi": "10.0000/dummy1", "verdict": "supports" },
+    { "doi": "10.0000/dummy2", "verdict": "background" },
+    { "doi": "10.0000/dummy3", "verdict": "background" }
+  ],
+  "nova_output": {
+    "evidence": [
+      { "title": "Dummy Paper 1", "doi": "10.0000/dummy1", "summary": "placeholder", "url": "https://example.com/1" },
+      { "title": "Dummy Paper 2", "doi": "10.0000/dummy2", "summary": "placeholder", "url": "https://example.com/2" },
+      { "title": "Dummy Paper 3", "doi": "10.0000/dummy3", "summary": "placeholder", "url": "https://example.com/3" }
+    ]
+  }
+} 
